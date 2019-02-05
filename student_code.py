@@ -88,6 +88,7 @@ class KnowledgeBase(object):
         Args:
             fact_rule (Fact or Rule): Fact or Rule we're asserting
         """
+        fact_rule.asserted = True;
         printv("Asserting {!r}", 0, verbose, [fact_rule])
         self.kb_add(fact_rule)
 
@@ -129,6 +130,53 @@ class KnowledgeBase(object):
         ####################################################
         # Student code goes here
         
+        if( (factq(fact_or_rule)) and (fact_or_rule in self.facts)): #if it is a fact in the knowledge base, get it
+            fact2Del = self._get_fact(fact_or_rule)                  
+            
+            if(len(fact2Del.supported_by) == 0):                     #if it is not supported by anything, remove it
+                self.facts.remove(fact2Del)
+                                                                     #remove all facts that it is the sole supporter of
+                for factSupported in fact2Del.supports_facts:
+                    for ff in factSupported.supported_by:
+                        if fact_or_rule in ff:
+                            self._get_fact(factSupported).supported_by.remove(ff)
+                        
+                    self.kb_retract(factSupported)
+                    
+                    
+                for ruleSupported in fact2Del.supports_rules:        #remove all rules that it is the sole supporter of
+                    for rr in ruleSupported.supported_by:
+                        if fact_or_rule in rr:
+                            self._get_rule(ruleSupported).supported_by.remove(rr)
+                    
+                    self.kb_retract(ruleSupported)
+                    
+            else:
+                fact2Del.asserted == False                           #if fact was originally asserted and supported, set asserted to False
+             
+        elif( (isinstance(fact_or_rule, Rule)) and (fact_or_rule in self.rules)):   #if it is a rule in the knowledge base, get it
+            rule2Del = self._get_rule(fact_or_rule)
+            
+            if( (rule2Del.asserted == False) or (len(rule2Del.supported_by) == 0)): #if it is not supported by anything, remove it
+                self.rules.remove(rule2Del)
+
+                for ruleSupported in rule2Del.supports_rules:                       #remove all rules that it is the sole supporter of
+                    for rr in ruleSupported.supported_by:
+                        if fact_or_rule in rr:
+                            self._get_rule(ruleSupported).supported_by.remove(rr)
+                    
+                    self.kb_retract(ruleSupported)
+                                                                                   #remove all facts that it is the sole supporter of                             
+                for factSupported in rule2Del.supports_facts:
+                    for ff in factSupported.supported_by:
+                        if fact_or_rule in ff:
+                            self._get_fact(factSupported).supported_by.remove(ff)                    
+                    
+                    #self.kb_retract(factSupported)
+        else: 
+            return
+ 
+        
 
 class InferenceEngine(object):
     def fc_infer(self, fact, rule, kb):
@@ -146,3 +194,37 @@ class InferenceEngine(object):
             [fact.statement, rule.lhs, rule.rhs])
         ####################################################
         # Student code goes here
+        '''
+        use util.match to do unification and create possible bindings
+        use util.instantiate to bind a virabile in the rest of a rule
+        For rule R, fact F, and inferred fact/rule fr,
+        add R and F to 'supported by' in fr
+        add rf to 'supports rules' or 'supports facts' in R and F
+        
+        '''
+       
+        newBindings = match(rule.lhs[0], fact.statement)
+        
+        if newBindings != False:
+            state = instantiate(rule.rhs, newBindings)
+            if len(rule.lhs) == 1:
+                newFact = Fact(statement=state, supported_by=[(fact, rule)])
+                newFact.asserted = False
+                
+                
+                fact.supports_facts.append(newFact)
+                rule.supports_facts.append(newFact)                
+                kb.kb_add(newFact)                
+                
+            else:
+                newLHS = []
+                for condition in rule.lhs[1:]:
+                    newLHS.append(instantiate(condition, newBindings))
+                newRule = Rule([newLHS, state], supported_by=[(fact, rule)])
+                newRule.asserted = False;
+                
+                fact.supports_rules.append(newRule)
+                rule.supports_rules.append(newRule)
+                kb.kb_add(newRule)                
+            return
+        return

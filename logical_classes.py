@@ -33,7 +33,7 @@ class Fact(object):
         self.supports_facts = []
         self.supports_rules = []
         for pair in supported_by:
-           self.supported_by.append(pair)
+            self.supported_by.append(pair)
 
     def __repr__(self):
         """Define internal string representation
